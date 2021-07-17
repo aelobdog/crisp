@@ -18,17 +18,18 @@
  *
  *-----------------------------------------------------------------*/
 
-#define GLFW_INCLUDE_NONE
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GLFW/glfw3.h>
+#include "SDL2/SDL.h"
+#include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_timer.h>
+#include <SDL2/SDL_video.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-#define PIXELSIZE 20
+#define PIXELSIZE 10
 #define WIDTH 64
 #define HEIGHT 32
 
@@ -74,17 +75,11 @@ u16 get8BitVal(u16 opcode) { return opcode & 0x00ff; }
 
 u16 get4BitVal(u16 opcode) { return opcode & 0x000f; }
 
+/* TODO */
 void drawPixel(u8 x, u8 y) {
   u8 x2, y2;
   x2 = x + 1;
   y2 = y + 1;
-  glBegin(GL_POLYGON);
-  glVertex3f(x, y, 0);
-  glVertex3f(x2, y, 0);
-  glVertex3f(x2, y2, 0);
-  glVertex3f(x, y2, 0);
-  glEnd();
-  glFlush();
 }
 
 void refreshScreen(Chip *c) {
@@ -379,22 +374,6 @@ void resetChip(Chip *c) {
   c->dtimer = 0;
   c->stimer = 0;
   prev_key = -1;
-  key_pressed[0] = 0;
-  key_pressed[1] = 0;
-  key_pressed[2] = 0;
-  key_pressed[3] = 0;
-  key_pressed[4] = 0;
-  key_pressed[5] = 0;
-  key_pressed[6] = 0;
-  key_pressed[7] = 0;
-  key_pressed[8] = 0;
-  key_pressed[9] = 0;
-  key_pressed[10] = 0;
-  key_pressed[11] = 0;
-  key_pressed[12] = 0;
-  key_pressed[13] = 0;
-  key_pressed[14] = 0;
-  key_pressed[15] = 0;
 }
 
 void loadFonts(Chip *c) {}
@@ -410,75 +389,13 @@ int loadProgram(Chip *c, char *filename) {
     return 1;
   return fclose(f);
 }
-void error_callback(int error, const char *description) {
-  fprintf(stderr, "Error: %s\n", description);
-}
-
-u8 keyToIndex(u8 keycode) {
-  switch (keycode) {
-  case GLFW_KEY_1:
-    return 1;
-  case GLFW_KEY_2:
-    return 2;
-  case GLFW_KEY_3:
-    return 3;
-  case GLFW_KEY_4:
-    return 0xc;
-  case GLFW_KEY_Q:
-    return 4;
-  case GLFW_KEY_W:
-    return 5;
-  case GLFW_KEY_E:
-    return 6;
-  case GLFW_KEY_R:
-    return 0xd;
-  case GLFW_KEY_A:
-    return 7;
-  case GLFW_KEY_S:
-    return 8;
-  case GLFW_KEY_D:
-    return 9;
-  case GLFW_KEY_F:
-    return 0xe;
-  case GLFW_KEY_Z:
-    return 0xa;
-  case GLFW_KEY_X:
-    return 0;
-  case GLFW_KEY_C:
-    return 0xb;
-  case GLFW_KEY_V:
-    return 0xf;
-  }
-  return 100;
-}
-
-static void key_callback(GLFWwindow *window, int key, int scancode, int action,
-                         int mods) {
-  u8 k;
-  if (action == GLFW_PRESS) {
-    k = keyToIndex(key);
-    if (k == 100)
-      return;
-    prev_key = k;
-    key_pressed[k] = 1;
-  } else if (action == GLFW_RELEASE) {
-    int l, active;
-    active = 0;
-    for (l = 0; l < 16; l++)
-      if (key_pressed[l]) {
-        active = 1;
-        break;
-      }
-    if (!active)
-      prev_key = -1;
-  }
-}
 
 int main(int argc, char **argv) {
   Chip c;
   int err;
   double last, current;
-  GLFWwindow *window;
+  SDL_Window *window;
+  SDL_Surface *surface;
 
   if (argc != 2) {
     printf("usage : crisp <program>\n");
@@ -493,63 +410,56 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if (!glfwInit()) {
-    printf("ERROR: glfw initialization failed");
+  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    printf("ERROR: failed to initialize SDL");
     return 1;
   }
-  glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-  window = glfwCreateWindow(WIDTH * PIXELSIZE, HEIGHT * PIXELSIZE, "Crisp",
-                            NULL, NULL);
+
+  window = SDL_CreateWindow("crisp", SDL_WINDOWPOS_CENTERED,
+                            SDL_WINDOWPOS_CENTERED, WIDTH * PIXELSIZE,
+                            HEIGHT * PIXELSIZE, SDL_WINDOWEVENT_SHOWN);
+
   if (!window) {
-    printf("ERROR: window creation failed.");
-    glfwTerminate();
-    return 1;
+    printf("ERROR: failed to create SDL window");
   }
+  surface = SDL_GetWindowSurface(window);
+  SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0x00, 0x00, 0x00));
+  SDL_UpdateWindowSurface(window);
+  SDL_Delay(2000);
 
-  glfwSetErrorCallback(error_callback);
-  glfwSetKeyCallback(window, key_callback);
-  glfwMakeContextCurrent(window);
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  gluOrtho2D(0, WIDTH, HEIGHT, 0);
-  glfwSetTime(0.0);
-  last = glfwGetTime();
-
-  while (!glfwWindowShouldClose(window)) {
-    u16 instruction;
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    current = glfwGetTime();
-    if (current - last > 16.666) {
-      /*    _________ ______
-           |         |******|
-            --------- ------
-          last     16.66   now
-
-      'last' is set to using the formula to ensure time
-      marked with '*' is not 'wasted'                */
-      last = current - ((current - last) - 16.666);
-      c.dtimer = c.dtimer == 0 ? 0 : c.dtimer - 1;
-      c.stimer = c.stimer == 0 ? 0 : c.stimer - 1;
-    }
-
-    if (c.pc > 4095) {
-      printf("ran out of memory");
-      return 1;
-    }
-
-    instruction = (c.mem[c.pc] << 8) + c.mem[c.pc + 1];
-    c.pc += 2;
-
-    (*opTable[(instruction & 0xf000) >> 12])(&c, instruction);
-
-    refreshScreen(&c);
-    glfwSwapBuffers(window);
-    glfwPollEvents();
-  }
-
-  glfwDestroyWindow(window);
-  glfwTerminate();
   return 0;
 }
+/*
+  while (1) {
+    u16 instruction;
+
+    /* current = timer
+if (current - last > 16.666) {
+  /*    _________ ______
+       |         |******|
+        --------- ------
+      last     16.66   now
+
+  'last' is set to using the formula to ensure time
+  marked with '*' is not 'wasted'
+  last = current - ((current - last) - 16.666);
+  c.dtimer = c.dtimer == 0 ? 0 : c.dtimer - 1;
+  c.stimer = c.stimer == 0 ? 0 : c.stimer - 1;
+}
+
+if (c.pc > 4095) {
+  printf("ran out of memory");
+  return 1;
+}
+
+instruction = (c.mem[c.pc] << 8) + c.mem[c.pc + 1];
+c.pc += 2;
+
+(*opTable[(instruction & 0xf000) >> 12])(&c, instruction);
+
+refreshScreen(&c);
+}
+
+return 0;
+}
+*/
