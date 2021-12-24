@@ -269,7 +269,7 @@ OP_EX9E(Chip *c, u16 opcode) {
    u8 x;
    x = c->v[getReg1(opcode)];
    if (x < 16 && c->kp == x) c->pc += 2;
-   /* c->kp = none; */
+   c->kp = none;
    while (SDL_PollEvent(&e));
 }
 
@@ -279,7 +279,7 @@ OP_EXA1(Chip *c, u16 opcode) {
    u8 x;
    x = c->v[getReg1(opcode)];
    if (x < 16 && c->kp != x) c->pc += 2;
-   /* c->kp = none; */
+   c->kp = none;
    while (SDL_PollEvent(&e));
 }
 
@@ -289,30 +289,29 @@ OP_FX07(Chip *c, u16 opcode) { c->v[getReg1(opcode)] = c->dtimer; }
 void 
 OP_FX0A(Chip *c, u16 opcode) {
    SDL_Event e;
-   while (SDL_PollEvent(&e));
-   while (SDL_WaitEventTimeout(&e, 50)) {
-      if (e.type == SDL_KEYDOWN) {
-         switch (e.key.keysym.sym) {
-         case SDLK_1: c->v[getReg1(opcode)] = k1; return;
-         case SDLK_2: c->v[getReg1(opcode)] = k2; return;
-         case SDLK_3: c->v[getReg1(opcode)] = k3; return;
-         case SDLK_q: c->v[getReg1(opcode)] = k4; return;
-         case SDLK_w: c->v[getReg1(opcode)] = k5; return;
-         case SDLK_e: c->v[getReg1(opcode)] = k6; return;
-         case SDLK_a: c->v[getReg1(opcode)] = k7; return;
-         case SDLK_s: c->v[getReg1(opcode)] = k8; return;
-         case SDLK_d: c->v[getReg1(opcode)] = k9; return;
-         case SDLK_z: c->v[getReg1(opcode)] = ka; return;
-         case SDLK_x: c->v[getReg1(opcode)] = k0; return;
-         case SDLK_c: c->v[getReg1(opcode)] = kb; return;
-         case SDLK_4: c->v[getReg1(opcode)] = kc; return;
-         case SDLK_r: c->v[getReg1(opcode)] = kd; return;
-         case SDLK_f: c->v[getReg1(opcode)] = ke; return;
-         case SDLK_v: c->v[getReg1(opcode)] = kf; return;
-         }
+   /* while (SDL_PollEvent(&e)); */
+   SDL_WaitEvent(&e);
+   if (e.type == SDL_KEYDOWN) {
+      switch (e.key.keysym.sym) {
+      case SDLK_1: c->v[getReg1(opcode)] = k1; return;
+      case SDLK_2: c->v[getReg1(opcode)] = k2; return;
+      case SDLK_3: c->v[getReg1(opcode)] = k3; return;
+      case SDLK_q: c->v[getReg1(opcode)] = k4; return;
+      case SDLK_w: c->v[getReg1(opcode)] = k5; return;
+      case SDLK_e: c->v[getReg1(opcode)] = k6; return;
+      case SDLK_a: c->v[getReg1(opcode)] = k7; return;
+      case SDLK_s: c->v[getReg1(opcode)] = k8; return;
+      case SDLK_d: c->v[getReg1(opcode)] = k9; return;
+      case SDLK_z: c->v[getReg1(opcode)] = ka; return;
+      case SDLK_x: c->v[getReg1(opcode)] = k0; return;
+      case SDLK_c: c->v[getReg1(opcode)] = kb; return;
+      case SDLK_4: c->v[getReg1(opcode)] = kc; return;
+      case SDLK_r: c->v[getReg1(opcode)] = kd; return;
+      case SDLK_f: c->v[getReg1(opcode)] = ke; return;
+      case SDLK_v: c->v[getReg1(opcode)] = kf; return;
       }
    }
-   c->pc-=2;
+   /* c->pc-=2; */
    c->kp = none; 
    return;
 }
